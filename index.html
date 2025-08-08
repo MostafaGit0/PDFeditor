@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Editor Pro</title>
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr;
+            height: 100vh;
+            gap: 0;
+            transition: grid-template-columns 0.3s ease;
+        }
+
+        .container.has-pdf {
+            grid-template-columns: 1fr 320px;
+        }
+
+        .main-panel {
+            background: white;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 2px 0 20px rgba(0,0,0,0.1);
+        }
+
+        .top-bar {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 15px 25px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(45deg, #fff, #e0f7ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .export-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: 500;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .export-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .viewer-container {
+            flex: 1;
+            overflow: auto;
+            background: #f8fafc;
+            position: relative;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .pdf-container {
+            position: relative;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: inline-block;
+        }
+
+        #pdf-canvas {
+            display: block;
+            border-radius: 8px;
+            cursor: crosshair;
+        }
+
+        .text-box {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #4facfe;
+            border-radius: 4px;
+            padding: 8px;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            color: #000;
+            cursor: move;
+            min-width: 100px;
+            min-height: 30px;
+            resize: both;
+            overflow: auto;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            word-wrap: break-word;
+            word-break: break-word;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+        }
+
+        .text-box:focus {
+            outline: none;
+            border-color: #0066cc;
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .text-box.selected {
+            border-color: #0066cc;
+            box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+        }
+
+        .text-box.dragging {
+            opacity: 0.8;
+            z-index: 1000;
+        }
+
+        .controls {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            gap: 10px;
+            background: rgba(255,255,255,0.95);
+            padding: 10px;
+            border-radius: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            z-index: 20;
+        }
+
+        .control-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .control-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .right-panel {
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            overflow-y: auto;
+            display: none;
+            transition: all 0.3s ease;
+        }
+
+        .right-panel.show {
+            display: block;
+        }
+
+        .panel-section {
+            margin-bottom: 25px;
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .panel-section h3 {
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .add-text-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 16px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .add-text-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: rgba(255,255,255,0.6);
+            background: rgba(255,255,255,0.2);
+        }
+
+        .form-control::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-btn {
+            padding: 8px 12px;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+
+        .toolbar-btn:hover, .toolbar-btn.active {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.6);
+        }
+
+        .upload-area {
+            border: 2px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 60px 20px;
+            text-align: center;
+            background: rgba(255,255,255,0.7);
+            transition: all 0.3s ease;
+            max-width: 500px;
+        }
+
+        .upload-area.dragover {
+            border-color: #4facfe;
+            background: rgba(79, 172, 254, 0.1);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: #a0aec0;
+            margin-bottom: 16px;
+        }
+
+        .upload-text {
+            font-size: 18px;
+            color: #4a5568;
+            margin-bottom: 8px;
+        }
+
+        .upload-subtext {
+            font-size: 14px;
+            color: #718096;
+        }
+
+        .upload-link {
+            color: #4facfe;
+            cursor: pointer;
+            text-decoration: underline;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .upload-link:hover {
+            color: #2563eb;
+            text-shadow: 0 0 8px rgba(79, 172, 254, 0.3);
+        }
+
+        .loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.95);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #4facfe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, #10b981, #059669);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.error {
+            background: linear-gradient(45deg, #ef4444, #dc2626);
+        }
+
+        .object-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .object-item {
+            background: rgba(255,255,255,0.15);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .object-item:hover, .object-item.active {
+            background: rgba(255,255,255,0.25);
+            transform: translateX(5px);
+        }
+
+        .delete-btn {
+            background: rgba(255,59,48,0.8);
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .delete-btn:hover {
+            background: rgba(255,59,48,1);
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 768px) {
+            .container, .container.has-pdf {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+            
+            .right-panel {
+                max-height: 50vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="mainContainer">
+        <div class="main-panel">
+            <div class="top-bar">
+                <div class="logo">📄 PDF Editor Pro</div>
+                <button class="export-btn" id="exportBtn" disabled>Export PDF</button>
+            </div>
+            
+            <div class="viewer-container" id="viewerContainer">
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="pdfFile" accept=".pdf" style="display: none;">
+                    <div class="upload-icon">📄</div>
+                    <div class="upload-text">Drop your PDF here</div>
+                    <div class="upload-subtext">or <span class="upload-link" onclick="document.getElementById('pdfFile').click()">browse files</span></div>
+                </div>
+                
+                <div class="pdf-container" id="pdfContainer" style="display: none;">
+                    <canvas id="pdf-canvas"></canvas>
+                </div>
+                
+                <div class="controls" id="controls" style="display: none;">
+                    <button class="control-btn" id="zoomOut" title="Zoom Out">−</button>
+                    <button class="control-btn" id="zoomIn" title="Zoom In">+</button>
+                    <button class="control-btn" id="prevPage" title="Previous Page">←</button>
+                    <span style="color: #666; font-size: 12px; align-self: center; white-space: nowrap;" id="pageInfo">1 / 1</span>
+                    <button class="control-btn" id="nextPage" title="Next Page">→</button>
+                </div>
+                
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <div>Processing PDF...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="right-panel" id="rightPanel">
+            <div class="panel-section">
+                <button class="add-text-btn" id="addTextBtn">➕ Add Text Box</button>
+                <h3>Text Editor</h3>
+                
+                <div class="toolbar">
+                    <button class="toolbar-btn" id="boldBtn">B</button>
+                    <button class="toolbar-btn" id="italicBtn">I</button>
+                    <button class="toolbar-btn" id="underlineBtn">U</button>
+                    <button class="toolbar-btn" id="alignLeftBtn">◄</button>
+                    <button class="toolbar-btn" id="alignCenterBtn">■</button>
+                    <button class="toolbar-btn" id="alignRightBtn">►</button>
+                </div>
+                
+                <div class="form-group">
+                    <label>Text Content</label>
+                    <textarea class="form-control" id="textContent" placeholder="Enter your text..." rows="3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Font Size</label>
+                    <input type="range" class="form-control" id="fontSize" min="8" max="72" value="16">
+                    <small style="opacity: 0.8;"><span id="fontSizeValue">16</span>px</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Font Family</label>
+                    <select class="form-control" id="fontFamily">
+                        <option value="Arial">Arial</option>
+                        <option value="Helvetica">Helvetica</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="Courier New">Courier New</option>
+                        <option value="Georgia">Georgia</option>
+                        <option value="Verdana">Verdana</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Text Color</label>
+                    <input type="color" class="form-control" id="fontColor" value="#000000">
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Objects on Page</h3>
+                <div class="object-list" id="objectList">
+                    <div style="text-align: center; opacity: 0.7; padding: 20px;">
+                        No text objects yet.<br>
+                        Click "Add Text Box" to get started.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Document Info</h3>
+                <div id="docInfo">
+                    <div>Page: <span id="currentPage">1</span> / <span id="totalPages">1</span></div>
+                    <div>Zoom: <span id="currentZoom">100</span>%</div>
+                    <div>Objects: <span id="objectCount">0</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PDF.js worker setup
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        class PDFEditorPro {
+            constructor() {
+                this.pdfDoc = null;
+                this.currentPage = 1;
+                this.totalPages = 0;
+                this.zoom = 1.0;
+                this.originalFileName = 'document';
+                
+                // High-quality settings
+                this.qualityScale = 5; // 5x scaling for ultra-high quality
+                this.displayScale = 1.5; // Display scaling
+                
+                // Canvas and container references
+                this.canvas = document.getElementById('pdf-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.container = document.getElementById('pdfContainer');
+                
+                // Text boxes management
+                this.textBoxes = new Map(); // Map page -> array of text boxes
+                this.selectedTextBox = null;
+                this.nextTextBoxId = 1;
+                
+                // Mouse interaction
+                this.isDragging = false;
+                this.dragOffset = { x: 0, y: 0 };
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.setupCanvasQuality();
+            }
+
+            setupCanvasQuality() {
+                // Enable high-quality canvas rendering
+                this.ctx.imageSmoothingEnabled = true;
+                this.ctx.imageSmoothingQuality = 'high';
+                this.ctx.textRenderingOptimization = 'optimizeQuality';
+            }
+
+            setupEventListeners() {
+                // File upload
+                document.getElementById('pdfFile').addEventListener('change', (e) => {
+                    if (e.target.files[0]) {
+                        this.loadPDF(e.target.files[0]);
+                    }
+                });
+
+                // Drag and drop
+                this.setupDragDrop();
+
+                // Controls
+                document.getElementById('zoomIn').addEventListener('click', () => this.zoomIn());
+                document.getElementById('zoomOut').addEventListener('click', () => this.zoomOut());
+                document.getElementById('prevPage').addEventListener('click', () => this.prevPage());
+                document.getElementById('nextPage').addEventListener('click', () => this.nextPage());
+                document.getElementById('exportBtn').addEventListener('click', () => this.exportPDF());
+
+                // Text editing
+                document.getElementById('addTextBtn').addEventListener('click', () => this.addTextBox());
+                document.getElementById('textContent').addEventListener('input', () => this.updateSelectedText());
+                document.getElementById('fontSize').addEventListener('input', () => this.updateSelectedTextStyle());
+                document.getElementById('fontFamily').addEventListener('change', () => this.updateSelectedTextStyle());
+                document.getElementById('fontColor').addEventListener('change', () => this.updateSelectedTextStyle());
+
+                // Toolbar buttons
+                document.getElementById('boldBtn').addEventListener('click', () => this.toggleBold());
+                document.getElementById('italicBtn').addEventListener('click', () => this.toggleItalic());
+                document.getElementById('underlineBtn').addEventListener('click', () => this.toggleUnderline());
+
+                // Font size display
+                document.getElementById('fontSize').addEventListener('input', (e) => {
+                    document.getElementById('fontSizeValue').textContent = e.target.value;
+                });
+
+                // Canvas click for adding text boxes
+                this.canvas.addEventListener('click', (e) => this.onCanvasClick(e));
+            }
+
+            setupDragDrop() {
+                const uploadArea = document.getElementById('uploadArea');
+                
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.add('dragover');
+                });
+
+                uploadArea.addEventListener('dragleave', () => {
+                    uploadArea.classList.remove('dragover');
+                });
+
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files[0] && files[0].type === 'application/pdf') {
+                        this.loadPDF(files[0]);
+                    }
+                });
+            }
+
+            async loadPDF(file) {
+                this.showLoading(true);
+                
+                try {
+                    console.log('Loading PDF file:', file.name);
+                    
+                    this.originalFileName = file.name.replace('.pdf', '');
+                    const arrayBuffer = await file.arrayBuffer();
+                    
+                    this.pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
+                    this.totalPages = this.pdfDoc.numPages;
+                    this.currentPage = 1;
+                    this.zoom = 1.0;
+                    
+                    console.log('PDF loaded successfully, pages:', this.totalPages);
+                    
+                    // Initialize text boxes for all pages
+                    this.textBoxes = new Map();
+                    
+                    // Show UI elements
+                    document.getElementById('uploadArea').style.display = 'none';
+                    document.getElementById('pdfContainer').style.display = 'block';
+                    document.getElementById('controls').style.display = 'flex';
+                    document.getElementById('exportBtn').disabled = false;
+                    this.showSidebar(true);
+                    
+                    // Render first page
+                    await this.renderPage();
+                    this.updateUI();
+                    this.showToast('PDF loaded successfully! Click anywhere to add text.');
+                    
+                } catch (error) {
+                    console.error('Error loading PDF:', error);
+                    this.showToast('Error loading PDF: ' + error.message, 'error');
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            async renderPage() {
+                if (!this.pdfDoc) return;
+
+                try {
+                    console.log('Rendering page', this.currentPage, 'with', this.qualityScale, 'x quality scaling');
+                    
+                    const page = await this.pdfDoc.getPage(this.currentPage);
+                    
+                    // Calculate viewport with ultra-high quality
+                    const baseViewport = page.getViewport({ scale: this.displayScale * this.zoom });
+                    const renderViewport = page.getViewport({ 
+                        scale: this.displayScale * this.zoom * this.qualityScale 
+                    });
+                    
+                    console.log('Base viewport:', baseViewport.width, 'x', baseViewport.height);
+                    console.log('Render viewport (', this.qualityScale, 'x):', renderViewport.width, 'x', renderViewport.height);
+                    
+                    // Set canvas size for ultra-high quality rendering
+                    this.canvas.width = renderViewport.width;
+                    this.canvas.height = renderViewport.height;
+                    
+                    // Set display size (what user sees)
+                    this.canvas.style.width = baseViewport.width + 'px';
+                    this.canvas.style.height = baseViewport.height + 'px';
+                    
+                    // Set container size
+                    this.container.style.width = baseViewport.width + 'px';
+                    this.container.style.height = baseViewport.height + 'px';
+                    
+                    // Enable high-quality rendering
+                    this.ctx.save();
+                    this.ctx.imageSmoothingEnabled = true;
+                    this.ctx.imageSmoothingQuality = 'high';
+                    
+                    // Render PDF at ultra-high resolution
+                    await page.render({
+                        canvasContext: this.ctx,
+                        viewport: renderViewport
+                    }).promise;
+                    
+                    this.ctx.restore();
+                    
+                    console.log('Page rendered at ultra-high quality');
+                    
+                    // Load and display text boxes for this page
+                    this.displayTextBoxes();
+                    
+                } catch (error) {
+                    console.error('Error rendering page:', error);
+                    this.showToast('Error rendering page: ' + error.message, 'error');
+                }
+            }
+
+            onCanvasClick(e) {
+                // Get click coordinates relative to displayed canvas
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                console.log('Canvas clicked at:', x, y);
+                
+                // Create text box at click position
+                this.createTextBoxAt(x, y);
+            }
+
+            createTextBoxAt(x, y) {
+                const textBoxId = this.nextTextBoxId++;
+                
+                // Create text box element
+                const textBox = document.createElement('div');
+                textBox.className = 'text-box';
+                textBox.contentEditable = true;
+                textBox.textContent = 'Click to edit text';
+                textBox.id = `textbox-${textBoxId}`;
+                
+                // Position text box
+                textBox.style.left = x + 'px';
+                textBox.style.top = y + 'px';
+                
+                // Add to container
+                this.container.appendChild(textBox);
+                
+                // Store text box data
+                const currentPageBoxes = this.textBoxes.get(this.currentPage) || [];
+                currentPageBoxes.push({
+                    id: textBoxId,
+                    x: x,
+                    y: y,
+                    text: 'Click to edit text',
+                    fontSize: 16,
+                    fontFamily: 'Arial',
+                    color: '#000000',
+                    bold: false,
+                    italic: false,
+                    underline: false,
+                    element: textBox
+                });
+                this.textBoxes.set(this.currentPage, currentPageBoxes);
+                
+                // Set up text box event listeners
+                this.setupTextBoxEvents(textBox, textBoxId);
+                
+                // Select the new text box
+                this.selectTextBox(textBox);
+                
+                console.log('Created text box', textBoxId, 'at', x, y);
+                this.updateObjectList();
+                this.updateUI();
+            }
+
+            setupTextBoxEvents(textBox, textBoxId) {
+                let isDragging = false;
+                let startX, startY, startLeft, startTop;
+
+                // Mouse down - start dragging
+                textBox.addEventListener('mousedown', (e) => {
+                    // Check if clicking on resize handle area (bottom-right corner)
+                    const rect = textBox.getBoundingClientRect();
+                    const isResizeHandle = (
+                        e.clientX > rect.right - 15 &&  // 15px from right edge
+                        e.clientY > rect.bottom - 15    // 15px from bottom edge
+                    );
+                    
+                    // Only start dragging if not clicking on resize handle
+                    if (e.target === textBox && !isResizeHandle) {
+                        isDragging = true;
+                        startX = e.clientX;
+                        startY = e.clientY;
+                        startLeft = parseInt(textBox.style.left);
+                        startTop = parseInt(textBox.style.top);
+                        textBox.classList.add('dragging');
+                        e.preventDefault();
+                    }
+                });
+
+                // Mouse move - drag
+                document.addEventListener('mousemove', (e) => {
+                    if (isDragging && textBox.classList.contains('dragging')) {
+                        const dx = e.clientX - startX;
+                        const dy = e.clientY - startY;
+                        textBox.style.left = (startLeft + dx) + 'px';
+                        textBox.style.top = (startTop + dy) + 'px';
+                        
+                        // Update stored position
+                        this.updateTextBoxPosition(textBoxId, startLeft + dx, startTop + dy);
+                    }
+                });
+
+                // Mouse up - stop dragging
+                document.addEventListener('mouseup', () => {
+                    if (isDragging) {
+                        isDragging = false;
+                        textBox.classList.remove('dragging');
+                    }
+                });
+
+                // Click - select text box
+                textBox.addEventListener('click', (e) => {
+                    this.selectTextBox(textBox);
+                    e.stopPropagation();
+                });
+
+                // Text change
+                textBox.addEventListener('input', () => {
+                    this.updateTextBoxData(textBoxId, 'text', textBox.textContent);
+                    this.updateObjectList();
+                });
+
+                // Focus/blur
+                textBox.addEventListener('focus', () => {
+                    this.selectTextBox(textBox);
+                });
+            }
+
+            selectTextBox(textBox) {
+                // Deselect previous
+                if (this.selectedTextBox) {
+                    this.selectedTextBox.classList.remove('selected');
+                }
+                
+                // Select new
+                this.selectedTextBox = textBox;
+                textBox.classList.add('selected');
+                
+                // Update UI controls with selected text box properties
+                const textBoxId = parseInt(textBox.id.replace('textbox-', ''));
+                const textBoxData = this.findTextBoxData(textBoxId);
+                
+                if (textBoxData) {
+                    document.getElementById('textContent').value = textBoxData.text;
+                    document.getElementById('fontSize').value = textBoxData.fontSize;
+                    document.getElementById('fontSizeValue').textContent = textBoxData.fontSize;
+                    document.getElementById('fontFamily').value = textBoxData.fontFamily;
+                    document.getElementById('fontColor').value = textBoxData.color;
+                    
+                    this.updateToolbarButtons(textBoxData);
+                }
+                
+                this.updateObjectList();
+            }
+
+            findTextBoxData(textBoxId) {
+                const currentPageBoxes = this.textBoxes.get(this.currentPage) || [];
+                return currentPageBoxes.find(box => box.id === textBoxId);
+            }
+
+            updateTextBoxPosition(textBoxId, x, y) {
+                const textBoxData = this.findTextBoxData(textBoxId);
+                if (textBoxData) {
+                    textBoxData.x = x;
+                    textBoxData.y = y;
+                }
+            }
+
+            updateTextBoxData(textBoxId, property, value) {
+                const textBoxData = this.findTextBoxData(textBoxId);
+                if (textBoxData) {
+                    textBoxData[property] = value;
+                }
+            }
+
+            displayTextBoxes() {
+                // Clear existing text boxes from DOM
+                this.container.querySelectorAll('.text-box').forEach(box => box.remove());
+                
+                // Display text boxes for current page
+                const currentPageBoxes = this.textBoxes.get(this.currentPage) || [];
+                
+                currentPageBoxes.forEach(boxData => {
+                    const textBox = document.createElement('div');
+                    textBox.className = 'text-box';
+                    textBox.contentEditable = true;
+                    textBox.textContent = boxData.text;
+                    textBox.id = `textbox-${boxData.id}`;
+                    textBox.style.left = boxData.x + 'px';
+                    textBox.style.top = boxData.y + 'px';
+                    textBox.style.fontSize = boxData.fontSize + 'px';
+                    textBox.style.fontFamily = boxData.fontFamily;
+                    textBox.style.color = boxData.color;
+                    textBox.style.fontWeight = boxData.bold ? 'bold' : 'normal';
+                    textBox.style.fontStyle = boxData.italic ? 'italic' : 'normal';
+                    textBox.style.textDecoration = boxData.underline ? 'underline' : 'none';
+                    
+                    this.container.appendChild(textBox);
+                    boxData.element = textBox;
+                    
+                    this.setupTextBoxEvents(textBox, boxData.id);
+                });
+                
+                this.updateObjectList();
+            }
+
+            addTextBox() {
+                // Add text box in center of visible area
+                const centerX = parseInt(this.canvas.style.width) / 2;
+                const centerY = parseInt(this.canvas.style.height) / 2;
+                
+                this.createTextBoxAt(centerX, centerY);
+                this.showToast('Text box added! Click to edit, drag to move.');
+            }
+
+            updateSelectedText() {
+                if (!this.selectedTextBox) return;
+                
+                const newText = document.getElementById('textContent').value;
+                this.selectedTextBox.textContent = newText;
+                
+                const textBoxId = parseInt(this.selectedTextBox.id.replace('textbox-', ''));
+                this.updateTextBoxData(textBoxId, 'text', newText);
+                this.updateObjectList();
+            }
+
+            updateSelectedTextStyle() {
+                if (!this.selectedTextBox) return;
+                
+                const fontSize = parseInt(document.getElementById('fontSize').value);
+                const fontFamily = document.getElementById('fontFamily').value;
+                const color = document.getElementById('fontColor').value;
+                
+                this.selectedTextBox.style.fontSize = fontSize + 'px';
+                this.selectedTextBox.style.fontFamily = fontFamily;
+                this.selectedTextBox.style.color = color;
+                
+                const textBoxId = parseInt(this.selectedTextBox.id.replace('textbox-', ''));
+                this.updateTextBoxData(textBoxId, 'fontSize', fontSize);
+                this.updateTextBoxData(textBoxId, 'fontFamily', fontFamily);
+                this.updateTextBoxData(textBoxId, 'color', color);
+                
+                document.getElementById('fontSizeValue').textContent = fontSize;
+            }
+
+            toggleBold() {
+                if (!this.selectedTextBox) return;
+                
+                const textBoxId = parseInt(this.selectedTextBox.id.replace('textbox-', ''));
+                const textBoxData = this.findTextBoxData(textBoxId);
+                
+                if (textBoxData) {
+                    textBoxData.bold = !textBoxData.bold;
+                    this.selectedTextBox.style.fontWeight = textBoxData.bold ? 'bold' : 'normal';
+                    this.updateToolbarButtons(textBoxData);
+                }
+            }
+
+            toggleItalic() {
+                if (!this.selectedTextBox) return;
+                
+                const textBoxId = parseInt(this.selectedTextBox.id.replace('textbox-', ''));
+                const textBoxData = this.findTextBoxData(textBoxId);
+                
+                if (textBoxData) {
+                    textBoxData.italic = !textBoxData.italic;
+                    this.selectedTextBox.style.fontStyle = textBoxData.italic ? 'italic' : 'normal';
+                    this.updateToolbarButtons(textBoxData);
+                }
+            }
+
+            toggleUnderline() {
+                if (!this.selectedTextBox) return;
+                
+                const textBoxId = parseInt(this.selectedTextBox.id.replace('textbox-', ''));
+                const textBoxData = this.findTextBoxData(textBoxId);
+                
+                if (textBoxData) {
+                    textBoxData.underline = !textBoxData.underline;
+                    this.selectedTextBox.style.textDecoration = textBoxData.underline ? 'underline' : 'none';
+                    this.updateToolbarButtons(textBoxData);
+                }
+            }
+
+            updateToolbarButtons(textBoxData) {
+                document.getElementById('boldBtn').classList.toggle('active', textBoxData.bold);
+                document.getElementById('italicBtn').classList.toggle('active', textBoxData.italic);
+                document.getElementById('underlineBtn').classList.toggle('active', textBoxData.underline);
+            }
+
+            updateObjectList() {
+                const container = document.getElementById('objectList');
+                const currentPageBoxes = this.textBoxes.get(this.currentPage) || [];
+                
+                if (currentPageBoxes.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; opacity: 0.7; padding: 20px;">No text objects yet.<br>Click anywhere on PDF to add text.</div>';
+                    return;
+                }
+                
+                container.innerHTML = currentPageBoxes.map((box, index) => {
+                    const isActive = this.selectedTextBox && this.selectedTextBox.id === `textbox-${box.id}`;
+                    const displayText = (box.text || 'Empty text').substring(0, 30) + (box.text && box.text.length > 30 ? '...' : '');
+                    
+                    return `
+                        <div class="object-item ${isActive ? 'active' : ''}" onclick="pdfEditor.selectTextBoxById(${box.id})">
+                            <div>
+                                <div style="font-weight: 500;">${displayText}</div>
+                                <div style="font-size: 11px; opacity: 0.7;">${box.fontSize}px ${box.fontFamily}</div>
+                            </div>
+                            <button class="delete-btn" onclick="event.stopPropagation(); pdfEditor.deleteTextBox(${box.id})">×</button>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            selectTextBoxById(textBoxId) {
+                const textBox = document.getElementById(`textbox-${textBoxId}`);
+                if (textBox) {
+                    this.selectTextBox(textBox);
+                }
+            }
+
+            deleteTextBox(textBoxId) {
+                const currentPageBoxes = this.textBoxes.get(this.currentPage) || [];
+                const index = currentPageBoxes.findIndex(box => box.id === textBoxId);
+                
+                if (index !== -1) {
+                    // Remove from DOM
+                    const textBox = document.getElementById(`textbox-${textBoxId}`);
+                    if (textBox) {
+                        textBox.remove();
+                    }
+                    
+                    // Remove from data
+                    currentPageBoxes.splice(index, 1);
+                    this.textBoxes.set(this.currentPage, currentPageBoxes);
+                    
+                    // Deselect if this was selected
+                    if (this.selectedTextBox && this.selectedTextBox.id === `textbox-${textBoxId}`) {
+                        this.selectedTextBox = null;
+                    }
+                    
+                    this.updateObjectList();
+                    this.updateUI();
+                    this.showToast('Text box deleted');
+                }
+            }
+
+            zoomIn() {
+                this.zoom = Math.min(this.zoom * 1.25, 3.0);
+                this.renderPage();
+                this.updateUI();
+            }
+
+            zoomOut() {
+                this.zoom = Math.max(this.zoom / 1.25, 0.5);
+                this.renderPage();
+                this.updateUI();
+            }
+
+            async prevPage() {
+                if (this.currentPage > 1) {
+                    this.currentPage--;
+                    await this.renderPage();
+                    this.updateUI();
+                    this.selectedTextBox = null;
+                }
+            }
+
+            async nextPage() {
+                if (this.currentPage < this.totalPages) {
+                    this.currentPage++;
+                    await this.renderPage();
+                    this.updateUI();
+                    this.selectedTextBox = null;
+                }
+            }
+
+            updateUI() {
+                document.getElementById('currentPage').textContent = this.currentPage;
+                document.getElementById('totalPages').textContent = this.totalPages;
+                document.getElementById('currentZoom').textContent = Math.round(this.zoom * 100);
+                document.getElementById('pageInfo').textContent = `${this.currentPage} / ${this.totalPages}`;
+                
+                const currentPageBoxes = this.textBoxes.get(this.currentPage) || [];
+                document.getElementById('objectCount').textContent = currentPageBoxes.length;
+                
+                document.getElementById('prevPage').disabled = this.currentPage === 1;
+                document.getElementById('nextPage').disabled = this.currentPage === this.totalPages;
+            }
+
+            async exportPDF() {
+                if (!this.pdfDoc) {
+                    this.showToast('No PDF loaded for export', 'error');
+                    return;
+                }
+                
+                this.showLoading(true);
+                
+                try {
+                    console.log('Starting ultra-high quality PDF export by capturing visual state...');
+                    
+                    // Create new PDF document
+                    const newPdfDoc = await PDFLib.PDFDocument.create();
+                    
+                    // Save current state
+                    const originalPage = this.currentPage;
+                    
+                    // Process each page by capturing the visual state
+                    for (let pageNum = 1; pageNum <= this.totalPages; pageNum++) {
+                        console.log(`Capturing page ${pageNum} visual state...`);
+                        
+                        // Switch to the page if needed
+                        if (this.currentPage !== pageNum) {
+                            this.currentPage = pageNum;
+                            await this.renderPage();
+                            // Wait for rendering to complete
+                            await new Promise(resolve => setTimeout(resolve, 200));
+                        }
+                        
+                        // Hide all text box borders and selection indicators for clean capture
+                        const allTextBoxes = this.container.querySelectorAll('.text-box');
+                        const originalStyles = [];
+                        
+                        allTextBoxes.forEach((textBox, index) => {
+                            // Store original styles
+                            originalStyles[index] = {
+                                border: textBox.style.border,
+                                boxShadow: textBox.style.boxShadow,
+                                background: textBox.style.background
+                            };
+                            
+                            // Remove visual indicators for export
+                            textBox.style.border = 'none';
+                            textBox.style.boxShadow = 'none';
+                            textBox.style.background = 'transparent';
+                            textBox.classList.remove('selected');
+                        });
+                        
+                        // Hide controls temporarily
+                        const controls = document.getElementById('controls');
+                        const originalControlsDisplay = controls.style.display;
+                        controls.style.display = 'none';
+                        
+                        // Wait a moment for styles to take effect
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        
+                        // Create high-resolution capture canvas
+                        const captureCanvas = document.createElement('canvas');
+                        const captureCtx = captureCanvas.getContext('2d');
+                        
+                        // Get current container dimensions
+                        const containerRect = this.container.getBoundingClientRect();
+                        
+                        // Set ultra-high resolution for capture
+                        const captureScale = this.qualityScale;
+                        captureCanvas.width = containerRect.width * captureScale;
+                        captureCanvas.height = containerRect.height * captureScale;
+                        
+                        // Enable high-quality rendering
+                        captureCtx.imageSmoothingEnabled = true;
+                        captureCtx.imageSmoothingQuality = 'high';
+                        captureCtx.scale(captureScale, captureScale);
+                        
+                        // First, draw the PDF canvas content
+                        captureCtx.drawImage(this.canvas, 0, 0, 
+                            parseInt(this.canvas.style.width), 
+                            parseInt(this.canvas.style.height));
+                        
+                        // Then draw all text boxes as they appear (with their actual sizes and positions)
+                        allTextBoxes.forEach(textBox => {
+                            const rect = textBox.getBoundingClientRect();
+                            const containerRect = this.container.getBoundingClientRect();
+                            
+                            // Calculate position relative to container
+                            const relativeX = rect.left - containerRect.left;
+                            const relativeY = rect.top - containerRect.top;
+                            
+                            // Set font and styling
+                            const computedStyle = window.getComputedStyle(textBox);
+                            captureCtx.font = `${computedStyle.fontStyle} ${computedStyle.fontWeight} ${computedStyle.fontSize} ${computedStyle.fontFamily}`;
+                            captureCtx.fillStyle = computedStyle.color;
+                            captureCtx.textBaseline = 'top';
+                            
+                            // Get text content and handle line breaks
+                            const text = textBox.textContent || textBox.innerText;
+                            if (text && text.trim()) {
+                                // Split text into lines and measure for wrapping
+                                const words = text.split(' ');
+                                const lines = [];
+                                let currentLine = '';
+                                const maxWidth = rect.width - 16; // Account for padding
+                                
+                                words.forEach(word => {
+                                    const testLine = currentLine ? currentLine + ' ' + word : word;
+                                    const metrics = captureCtx.measureText(testLine);
+                                    
+                                    if (metrics.width > maxWidth && currentLine) {
+                                        lines.push(currentLine);
+                                        currentLine = word;
+                                    } else {
+                                        currentLine = testLine;
+                                    }
+                                });
+                                
+                                if (currentLine) {
+                                    lines.push(currentLine);
+                                }
+                                
+                                // Draw each line
+                                const lineHeight = parseFloat(computedStyle.fontSize) * 1.2;
+                                lines.forEach((line, lineIndex) => {
+                                    const lineY = relativeY + 8 + (lineIndex * lineHeight); // 8px for padding
+                                    
+                                    // Only draw if within text box bounds
+                                    if (lineY + lineHeight <= relativeY + rect.height) {
+                                        captureCtx.fillText(line, relativeX + 8, lineY);
+                                        
+                                        // Add underline if needed
+                                        if (computedStyle.textDecoration.includes('underline')) {
+                                            const textWidth = captureCtx.measureText(line).width;
+                                            const underlineY = lineY + parseFloat(computedStyle.fontSize);
+                                            captureCtx.beginPath();
+                                            captureCtx.moveTo(relativeX + 8, underlineY);
+                                            captureCtx.lineTo(relativeX + 8 + textWidth, underlineY);
+                                            captureCtx.strokeStyle = computedStyle.color;
+                                            captureCtx.lineWidth = 1;
+                                            captureCtx.stroke();
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                        
+                        // Restore original styles
+                        allTextBoxes.forEach((textBox, index) => {
+                            if (originalStyles[index]) {
+                                textBox.style.border = originalStyles[index].border;
+                                textBox.style.boxShadow = originalStyles[index].boxShadow;
+                                textBox.style.background = originalStyles[index].background;
+                            }
+                        });
+                        
+                        // Restore controls
+                        controls.style.display = originalControlsDisplay;
+                        
+                        // Convert capture to image
+                        const imageDataUrl = captureCanvas.toDataURL('image/png', 1.0);
+                        const imageBytes = this.dataURLtoUint8Array(imageDataUrl);
+                        
+                        // Embed in new PDF
+                        const image = await newPdfDoc.embedPng(imageBytes);
+                        const newPage = newPdfDoc.addPage();
+                        
+                        // Set page size to match original
+                        const originalPage = await this.pdfDoc.getPage(pageNum);
+                        const originalPageSize = originalPage.getViewport({ scale: 1.0 });
+                        newPage.setSize(originalPageSize.width, originalPageSize.height);
+                        
+                        // Draw the captured image
+                        newPage.drawImage(image, {
+                            x: 0,
+                            y: 0,
+                            width: originalPageSize.width,
+                            height: originalPageSize.height,
+                        });
+                        
+                        console.log(`Page ${pageNum} captured and exported at ${captureScale}x quality`);
+                    }
+                    
+                    // Restore original page and selection
+                    if (this.currentPage !== originalPage) {
+                        this.currentPage = originalPage;
+                        await this.renderPage();
+                    }
+                    
+                    // Restore selection if there was one
+                    if (this.selectedTextBox) {
+                        this.selectedTextBox.classList.add('selected');
+                    }
+                    
+                    // Save and download
+                    const pdfBytes = await newPdfDoc.save();
+                    console.log('Ultra-high quality PDF created, size:', pdfBytes.length);
+                    
+                    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${this.originalFileName}_edited_HQ.pdf`;
+                    a.style.display = 'none';
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    setTimeout(() => {
+                        if (document.body.contains(a)) {
+                            document.body.removeChild(a);
+                        }
+                        URL.revokeObjectURL(url);
+                    }, 100);
+                    
+                    this.showToast(`Ultra-high quality PDF exported! (${this.qualityScale}x resolution)`);
+                    
+                } catch (error) {
+                    console.error('Export error:', error);
+                    this.showToast(`Export failed: ${error.message}`, 'error');
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            dataURLtoUint8Array(dataURL) {
+                const base64 = dataURL.split(',')[1];
+                const binaryString = atob(base64);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                return bytes;
+            }
+
+            showSidebar(show) {
+                const container = document.getElementById('mainContainer');
+                const sidebar = document.getElementById('rightPanel');
+                
+                if (show) {
+                    container.classList.add('has-pdf');
+                    sidebar.classList.add('show');
+                } else {
+                    container.classList.remove('has-pdf');
+                    sidebar.classList.remove('show');
+                }
+            }
+
+            showLoading(show) {
+                document.getElementById('loading').style.display = show ? 'block' : 'none';
+            }
+
+            showToast(message, type = 'success') {
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                
+                document.body.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.classList.add('show');
+                }, 100);
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => {
+                        if (document.body.contains(toast)) {
+                            document.body.removeChild(toast);
+                        }
+                    }, 300);
+                }, 3000);
+            }
+        }
+
+        // Initialize the PDF Editor
+        const pdfEditor = new PDFEditorPro();
+    </script>
+</body>
+</html>
