@@ -210,28 +210,6 @@
             font-weight: 600;
         }
 
-        .add-text-btn {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 16px;
-            font-weight: 600;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            width: 100%;
-            margin-bottom: 20px;
-        }
-
-        .add-text-btn:hover {
-            background: rgba(255,255,255,0.3);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-
         .form-group {
             margin-bottom: 15px;
         }
@@ -468,7 +446,10 @@
         
         <div class="right-panel" id="rightPanel">
             <div class="panel-section">
-                <button class="add-text-btn" id="addTextBtn">➕ Add Text Box</button>
+                <div style="text-align: center; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2);">
+                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 5px;">💡 Quick Tip</div>
+                    <div style="font-size: 14px; opacity: 0.9;">Click anywhere on the PDF to add text!</div>
+                </div>
                 <h3>Text Editor</h3>
                 
                 <div class="toolbar">
@@ -591,7 +572,6 @@
                 document.getElementById('exportBtn').addEventListener('click', () => this.exportPDF());
 
                 // Text editing
-                document.getElementById('addTextBtn').addEventListener('click', () => this.addTextBox());
                 document.getElementById('textContent').addEventListener('input', () => this.updateSelectedText());
                 document.getElementById('fontSize').addEventListener('input', () => this.updateSelectedTextStyle());
                 document.getElementById('fontFamily').addEventListener('change', () => this.updateSelectedTextStyle());
