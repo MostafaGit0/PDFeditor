@@ -62,7 +62,7 @@
         }
 
         .export-btn {
-            background: rgba(255,255,255,0.2);
+            background: linear-gradient(135deg, #ff4757, #ff3742);
             border: none;
             color: white;
             padding: 10px 20px;
@@ -71,14 +71,13 @@
             transition: all 0.3s ease;
             font-size: 14px;
             font-weight: 500;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(255, 71, 87, 0.3);
         }
 
         .export-btn:hover {
-            background: rgba(255,255,255,0.3);
+            background: linear-gradient(135deg, #ff3742, #ff2635);
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 5px 15px rgba(255, 71, 87, 0.5);
         }
 
         .viewer-container {
@@ -455,8 +454,6 @@
                 </div>
                 
                 <div class="controls" id="controls" style="display: none;">
-                    <button class="control-btn" id="zoomOut" title="Zoom Out">−</button>
-                    <button class="control-btn" id="zoomIn" title="Zoom In">+</button>
                     <button class="control-btn" id="prevPage" title="Previous Page">←</button>
                     <span style="color: #666; font-size: 12px; align-self: center; white-space: nowrap;" id="pageInfo">1 / 1</span>
                     <button class="control-btn" id="nextPage" title="Next Page">→</button>
@@ -526,7 +523,6 @@
                 <h3>Document Info</h3>
                 <div id="docInfo">
                     <div>Page: <span id="currentPage">1</span> / <span id="totalPages">1</span></div>
-                    <div>Zoom: <span id="currentZoom">100</span>%</div>
                     <div>Objects: <span id="objectCount">0</span></div>
                 </div>
             </div>
@@ -590,8 +586,6 @@
                 this.setupDragDrop();
 
                 // Controls
-                document.getElementById('zoomIn').addEventListener('click', () => this.zoomIn());
-                document.getElementById('zoomOut').addEventListener('click', () => this.zoomOut());
                 document.getElementById('prevPage').addEventListener('click', () => this.prevPage());
                 document.getElementById('nextPage').addEventListener('click', () => this.nextPage());
                 document.getElementById('exportBtn').addEventListener('click', () => this.exportPDF());
@@ -1072,18 +1066,6 @@
                 }
             }
 
-            zoomIn() {
-                this.zoom = Math.min(this.zoom * 1.25, 3.0);
-                this.renderPage();
-                this.updateUI();
-            }
-
-            zoomOut() {
-                this.zoom = Math.max(this.zoom / 1.25, 0.5);
-                this.renderPage();
-                this.updateUI();
-            }
-
             async prevPage() {
                 if (this.currentPage > 1) {
                     this.currentPage--;
@@ -1105,7 +1087,6 @@
             updateUI() {
                 document.getElementById('currentPage').textContent = this.currentPage;
                 document.getElementById('totalPages').textContent = this.totalPages;
-                document.getElementById('currentZoom').textContent = Math.round(this.zoom * 100);
                 document.getElementById('pageInfo').textContent = `${this.currentPage} / ${this.totalPages}`;
                 
                 const currentPageBoxes = this.textBoxes.get(this.currentPage) || [];
