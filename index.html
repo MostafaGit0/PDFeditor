@@ -210,6 +210,26 @@
             font-weight: 600;
         }
 
+        .signature-btn {
+            background: linear-gradient(135deg, #ff6b9d, #ff4081);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: 600;
+            width: 100%;
+            box-shadow: 0 2px 10px rgba(255, 107, 157, 0.3);
+        }
+
+        .signature-btn:hover {
+            background: linear-gradient(135deg, #ff4081, #ff1976);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 157, 0.5);
+        }
+
         .form-group {
             margin-bottom: 15px;
         }
@@ -450,6 +470,16 @@
                     <div style="font-size: 16px; font-weight: 600; margin-bottom: 5px;">💡 Quick Tip</div>
                     <div style="font-size: 14px; opacity: 0.9;">Click anywhere on the PDF to add text!</div>
                 </div>
+                
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2);">
+                    <h3 style="margin-bottom: 15px; font-size: 16px;">✍️ Digital Signature</h3>
+                    <div class="form-group">
+                        <label>Your Name</label>
+                        <input type="text" class="form-control" id="signatureName" placeholder="Enter your full name...">
+                    </div>
+                    <button class="signature-btn" id="generateSignatureBtn">Generate Signature</button>
+                </div>
+                
                 <h3>Text Editor</h3>
                 
                 <div class="toolbar">
@@ -576,6 +606,9 @@
                 document.getElementById('fontSize').addEventListener('input', () => this.updateSelectedTextStyle());
                 document.getElementById('fontFamily').addEventListener('change', () => this.updateSelectedTextStyle());
                 document.getElementById('fontColor').addEventListener('change', () => this.updateSelectedTextStyle());
+
+                // Signature generation
+                document.getElementById('generateSignatureBtn').addEventListener('click', () => this.generateSignature());
 
                 // Toolbar buttons
                 document.getElementById('boldBtn').addEventListener('click', () => this.toggleBold());
@@ -911,6 +944,72 @@
                 
                 this.createTextBoxAt(centerX, centerY);
                 this.showToast('Text box added! Click to edit, drag to move.');
+            }
+
+            generateSignature() {
+                const signatureName = document.getElementById('signatureName').value.trim();
+                
+                if (!signatureName) {
+                    this.showToast('Please enter your name first!', 'error');
+                    return;
+                }
+                
+                // Create signature text box in center of page
+                const centerX = parseInt(this.canvas.style.width) / 2;
+                const centerY = parseInt(this.canvas.style.height) / 2;
+                
+                const textBoxId = this.nextTextBoxId++;
+                
+                // Create text box element with signature styling
+                const textBox = document.createElement('div');
+                textBox.className = 'text-box';
+                textBox.contentEditable = true;
+                textBox.textContent = signatureName;
+                textBox.id = `textbox-${textBoxId}`;
+                
+                // Position text box
+                textBox.style.left = centerX + 'px';
+                textBox.style.top = centerY + 'px';
+                
+                // Apply signature styling
+                textBox.style.fontSize = '24px';
+                textBox.style.fontFamily = 'Dancing Script, Brush Script MT, cursive';
+                textBox.style.fontStyle = 'italic';
+                textBox.style.color = '#000000'; // Black color for signatures
+                
+                // Add to container
+                this.container.appendChild(textBox);
+                
+                // Store text box data with signature properties
+                const currentPageBoxes = this.textBoxes.get(this.currentPage) || [];
+                currentPageBoxes.push({
+                    id: textBoxId,
+                    x: centerX,
+                    y: centerY,
+                    text: signatureName,
+                    fontSize: 24,
+                    fontFamily: 'Dancing Script',
+                    color: '#000000',
+                    bold: false,
+                    italic: true,
+                    underline: false,
+                    element: textBox
+                });
+                this.textBoxes.set(this.currentPage, currentPageBoxes);
+                
+                // Set up text box event listeners
+                this.setupTextBoxEvents(textBox, textBoxId);
+                
+                // Select the new signature text box
+                this.selectTextBox(textBox);
+                
+                console.log('Generated signature for:', signatureName);
+                this.updateObjectList();
+                this.updateUI();
+                this.showToast('Digital signature generated! You can drag and resize it as needed.');
+                
+                // Clear the input field
+                document.getElementById('signatureName').value = '';
             }
 
             updateSelectedText() {
