@@ -211,7 +211,7 @@
         }
 
         .signature-btn {
-            background: linear-gradient(135deg, #ff6b9d, #ff4081);
+            background: linear-gradient(135deg, #ff69b4, #ff1493);
             border: none;
             color: white;
             padding: 10px 20px;
@@ -221,13 +221,13 @@
             font-size: 14px;
             font-weight: 600;
             width: 100%;
-            box-shadow: 0 2px 10px rgba(255, 107, 157, 0.3);
+            box-shadow: 0 2px 10px rgba(255, 105, 180, 0.3);
         }
 
         .signature-btn:hover {
-            background: linear-gradient(135deg, #ff4081, #ff1976);
+            background: linear-gradient(135deg, #ff1493, #dc143c);
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(255, 107, 157, 0.5);
+            box-shadow: 0 5px 15px rgba(255, 105, 180, 0.5);
         }
 
         .form-group {
@@ -471,15 +471,6 @@
                     <div style="font-size: 14px; opacity: 0.9;">Click anywhere on the PDF to add text!</div>
                 </div>
                 
-                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2);">
-                    <h3 style="margin-bottom: 15px; font-size: 16px;">✍️ Digital Signature</h3>
-                    <div class="form-group">
-                        <label>Your Name</label>
-                        <input type="text" class="form-control" id="signatureName" placeholder="Enter your full name...">
-                    </div>
-                    <button class="signature-btn" id="generateSignatureBtn">Generate Signature</button>
-                </div>
-                
                 <h3>Text Editor</h3>
                 
                 <div class="toolbar">
@@ -517,6 +508,15 @@
                 <div class="form-group">
                     <label>Text Color</label>
                     <input type="color" class="form-control" id="fontColor" value="#000000">
+                </div>
+                
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2);">
+                    <h3 style="margin-bottom: 15px; font-size: 16px;">✍️ Digital Signature</h3>
+                    <div class="form-group">
+                        <label>Your Name</label>
+                        <input type="text" class="form-control" id="signatureName" placeholder="Enter your full name...">
+                    </div>
+                    <button class="signature-btn" id="generateSignatureBtn">Generate Signature</button>
                 </div>
             </div>
             
@@ -928,6 +928,11 @@
                     textBox.style.fontStyle = boxData.italic ? 'italic' : 'normal';
                     textBox.style.textDecoration = boxData.underline ? 'underline' : 'none';
                     
+                    // Ensure signature font stays applied
+                    if (boxData.isSignature) {
+                        textBox.style.fontFamily = 'Dancing Script, Brush Script MT, cursive';
+                    }
+                    
                     this.container.appendChild(textBox);
                     boxData.element = textBox;
                     
@@ -954,6 +959,12 @@
                     return;
                 }
                 
+                // Capitalize first letter of each word
+                const capitalizedName = signatureName
+                    .split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                    .join(' ');
+                
                 // Create signature text box in center of page
                 const centerX = parseInt(this.canvas.style.width) / 2;
                 const centerY = parseInt(this.canvas.style.height) / 2;
@@ -964,7 +975,7 @@
                 const textBox = document.createElement('div');
                 textBox.className = 'text-box';
                 textBox.contentEditable = true;
-                textBox.textContent = signatureName;
+                textBox.textContent = capitalizedName;
                 textBox.id = `textbox-${textBoxId}`;
                 
                 // Position text box
@@ -986,13 +997,14 @@
                     id: textBoxId,
                     x: centerX,
                     y: centerY,
-                    text: signatureName,
+                    text: capitalizedName,
                     fontSize: 24,
                     fontFamily: 'Dancing Script',
                     color: '#000000',
                     bold: false,
                     italic: true,
                     underline: false,
+                    isSignature: true, // Mark as signature
                     element: textBox
                 });
                 this.textBoxes.set(this.currentPage, currentPageBoxes);
@@ -1003,7 +1015,7 @@
                 // Select the new signature text box
                 this.selectTextBox(textBox);
                 
-                console.log('Generated signature for:', signatureName);
+                console.log('Generated signature for:', capitalizedName);
                 this.updateObjectList();
                 this.updateUI();
                 this.showToast('Digital signature generated! You can drag and resize it as needed.');
@@ -1031,12 +1043,18 @@
                 const color = document.getElementById('fontColor').value;
                 
                 this.selectedTextBox.style.fontSize = fontSize + 'px';
-                this.selectedTextBox.style.fontFamily = fontFamily;
                 this.selectedTextBox.style.color = color;
                 
                 const textBoxId = parseInt(this.selectedTextBox.id.replace('textbox-', ''));
+                const textBoxData = this.findTextBoxData(textBoxId);
+                
+                // Only change font family if it's not a signature
+                if (textBoxData && !textBoxData.isSignature) {
+                    this.selectedTextBox.style.fontFamily = fontFamily;
+                    this.updateTextBoxData(textBoxId, 'fontFamily', fontFamily);
+                }
+                
                 this.updateTextBoxData(textBoxId, 'fontSize', fontSize);
-                this.updateTextBoxData(textBoxId, 'fontFamily', fontFamily);
                 this.updateTextBoxData(textBoxId, 'color', color);
                 
                 document.getElementById('fontSizeValue').textContent = fontSize;
